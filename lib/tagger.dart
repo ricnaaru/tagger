@@ -2,26 +2,33 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:tagger/smart_text.dart';
+import 'package:characters/characters.dart';
 
 class Tagger extends StatefulWidget {
+  final String? label;
   final TaggerController? controller;
   final EdgeInsets padding;
   final double minWidth;
   final TextStyle textStyle;
+  final String? hint;
   final TextStyle hintTextStyle;
   final TextStyle buttonTextStyle;
   final Color textFieldBackgroundColor;
   final Color tagButtonColor;
   final Color tagButtonIconColor;
   final ValueChanged<String>? onChanged;
+  final EdgeInsets textFieldPadding;
+  final Widget? prefix;
+  final double prefixWidth;
 
   const Tagger({
     Key? key,
+    this.label,
     this.controller,
-    this.padding = const EdgeInsets.only(top: 8, right: 16, left: 8, bottom: 8),
+    this.padding = const EdgeInsets.all(8),
     this.minWidth = 60,
     this.textStyle = const TextStyle(fontSize: 16),
+    this.hint,
     this.hintTextStyle = const TextStyle(
       fontSize: 16,
       color: Color(0xffA2A2A2),
@@ -34,6 +41,12 @@ class Tagger extends StatefulWidget {
     this.tagButtonColor = const Color(0xff005779),
     this.tagButtonIconColor = Colors.white,
     this.onChanged,
+    this.textFieldPadding = const EdgeInsets.symmetric(
+      vertical: 8,
+      horizontal: 12,
+    ),
+    this.prefix,
+    this.prefixWidth = 0,
   }) : super(key: key);
 
   @override
@@ -68,7 +81,9 @@ class _TaggerState extends State<Tagger> {
     WidgetsBinding.instance!.addPostFrameCallback((timeStamp) {
       if (controller.text.isNotEmpty) onTextChanged();
       if (textWidthNotifier.value == 0 && lastConstraints != null) {
-        textWidthNotifier.value = lastConstraints!.maxWidth;
+        textWidthNotifier.value =
+            lastConstraints!.maxWidth - widget.padding.horizontal -
+                widget.prefixWidth - (widget.prefix != null ? 8 : 0);
       }
     });
   }
@@ -78,66 +93,86 @@ class _TaggerState extends State<Tagger> {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         lastConstraints = constraints;
-        return Container(
-          padding: widget.padding,
-          width: constraints.maxWidth,
-          color: Colors.white,
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              ...buttons,
-              ValueListenableBuilder(
-                valueListenable: textWidthNotifier,
-                builder: (BuildContext context, double textWidthValue,
-                    Widget? child) {
-                  return RawKeyboardListener(
-                    focusNode: focusNode,
-                    onKey: (key) {
-                      if (key.runtimeType.toString() == 'RawKeyDownEvent') {
-                        if (key.logicalKey == LogicalKeyboardKey.backspace) {
-                          if (controller.text.isEmpty &&
-                              buttonStrings.isNotEmpty) {
-                            whenEditLastTag();
-                          }
-                        }
-                      }
-                    },
-                    child: Container(
-                      width: textWidthValue,
-                      decoration: BoxDecoration(
-                        color: widget.textFieldBackgroundColor,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: TextField(
-                        controller: controller,
-                        decoration: InputDecoration(
-                          isDense: true,
-                          hintStyle: widget.hintTextStyle,
-                          hintText: "Enter your tags here",
-                          contentPadding:
-                              EdgeInsets.symmetric(vertical: 5, horizontal: 12),
-                          suffixIconConstraints: BoxConstraints(minHeight: 0),
-                          prefixIconConstraints: BoxConstraints(minHeight: 0),
-                          border: InputBorder.none,
-                          disabledBorder: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          errorBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          focusedErrorBorder: InputBorder.none,
-                        ),
-                        style: widget.textStyle,
-                        onSubmitted: (s) {
-                          checkForTags("$s ");
-                        },
-                      ),
-                    ),
-                  );
-                },
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (widget.label != null)
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8)
+                    .copyWith(bottom: 6),
+                child: Text(
+                  widget.label!,
+                  style: TextStyle(fontSize: 12, color: Color(0xff686868)),
+                ),
               ),
-            ],
-          ),
+            Container(
+              padding: widget.padding,
+              width: constraints.maxWidth,
+              color: Colors.white,
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  if (widget.prefix != null)Container(
+                    width: widget.prefixWidth, child: widget.prefix!,),
+                  ...buttons,
+                  ValueListenableBuilder(
+                    valueListenable: textWidthNotifier,
+                    builder: (BuildContext context, double textWidthValue,
+                        Widget? child) {
+                      return RawKeyboardListener(
+                        focusNode: focusNode,
+                        onKey: (key) {
+                          if (key.runtimeType.toString() == 'RawKeyDownEvent') {
+                            if (key.logicalKey ==
+                                LogicalKeyboardKey.backspace) {
+                              if (controller.text.isEmpty &&
+                                  buttonStrings.isNotEmpty) {
+                                whenEditLastTag();
+                              }
+                            }
+                          }
+                        },
+                        child: Container(
+                          width: textWidthValue,
+                          decoration: BoxDecoration(
+                            color: widget.textFieldBackgroundColor,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: TextField(
+                            controller: controller,
+                            textCapitalization: TextCapitalization.words,
+                            decoration: InputDecoration(
+                              isDense: true,
+                              hintStyle: widget.hintTextStyle,
+                              hintText: widget.hint,
+                              contentPadding: widget.textFieldPadding,
+                              suffixIconConstraints:
+                              BoxConstraints(minHeight: 0),
+                              prefixIconConstraints:
+                              BoxConstraints(minHeight: 0),
+                              border: InputBorder.none,
+                              disabledBorder: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              errorBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              focusedErrorBorder: InputBorder.none,
+                            ),
+                            style: widget.textStyle,
+                            onSubmitted: (s) {
+                              checkForTags("$s ");
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
         );
       },
     );
@@ -172,7 +207,7 @@ class _TaggerState extends State<Tagger> {
       );
       buttons.addAll(
         filteredParts.getRange(0, filteredParts.length - 1).map(
-          (e) {
+              (e) {
             TextPainter tp = TextPainter(
               text: TextSpan(text: e, style: widget.buttonTextStyle),
               textDirection: TextDirection.ltr,
@@ -181,10 +216,10 @@ class _TaggerState extends State<Tagger> {
             tp.layout();
 
             double textWidth = min(
-              tp.width + 4, //using advText requires this to be added 4 pixels
+              tp.width,
               (lastConstraints!.maxWidth - widget.padding.horizontal) -
-                  10 -
-                  widget.padding.horizontal, //38 is icon + dividers and padding
+                  18 -
+                  16, //18 is icon + padding
             );
 
             return InkWell(
@@ -208,16 +243,18 @@ class _TaggerState extends State<Tagger> {
                   children: [
                     Container(
                       width: textWidth,
-                      child: SmartText(
-                        e,
+                      child: Text(
+                        e.overflow,
+                        overflow: TextOverflow.ellipsis,
                         style: widget.buttonTextStyle,
                         maxLines: 1,
-                        wrapWholeWord: true,
-                        withDot: true,
                       ),
                     ),
-                    Icon(Icons.close,
-                        size: 18, color: widget.tagButtonIconColor)
+                    Icon(
+                      Icons.close,
+                      size: 18,
+                      color: widget.tagButtonIconColor,
+                    ),
                   ],
                 ),
               ),
@@ -243,7 +280,7 @@ class _TaggerState extends State<Tagger> {
     tp.layout();
 
     double textWidth = min(
-      max(tp.width + 24 + 4, widget.minWidth),
+      max(tp.width + widget.textFieldPadding.horizontal + 2, widget.minWidth),
       lastConstraints!.maxWidth - 18,
     );
 
@@ -263,37 +300,45 @@ class _TaggerState extends State<Tagger> {
 
   double whenButtonChanged() {
     double availableWidth =
-        (lastConstraints!.maxWidth - widget.padding.horizontal);
+    (lastConstraints!.maxWidth - widget.padding.left);
 
-    Iterable<double> computedWidths = buttonStrings.map((e) {
+    List<double> computedWidths = buttonStrings.map((e) {
       TextPainter tp = TextPainter(
         text: TextSpan(text: e, style: widget.buttonTextStyle),
         textDirection: TextDirection.ltr,
       );
+
       tp.layout();
 
-      return tp.width + 4 + widget.padding.horizontal + 18;
-    });
+      /// 18 is icon width
+      /// 16 is button padding
+      /// 8 is right margin for button
+      return tp.width + 18 + 16 + 8;
+    }).toList();
+
+    computedWidths.insert(0, widget.prefixWidth +
+        (widget.prefix != null ? 8 : 0));
 
     double totalWidth = computedWidths.isEmpty
         ? 0
         : computedWidths.reduce(
-            (value, element) {
-              double maybeNext = value + element - 8;
+          (value, element) {
+        double maybeNext = value + element;
 
-              if (maybeNext > availableWidth) {
-                return element;
-              }
+        if (maybeNext > availableWidth) {
+          return element;
+        }
 
-              return maybeNext + 8;
-            },
-          );
+        return maybeNext;
+      },
+    );
 
     double shouldBe = totalWidth > availableWidth
-        ? availableWidth
-        : (availableWidth - totalWidth);
+        ? availableWidth - widget.padding.right
+        : (availableWidth - totalWidth - widget.padding.right);
 
-    if (shouldBe < widget.minWidth) shouldBe = availableWidth;
+    if (shouldBe < widget.minWidth)
+      shouldBe = availableWidth - widget.padding.right;
 
     return shouldBe;
   }
@@ -332,8 +377,10 @@ class _TaggerState extends State<Tagger> {
     tp.layout();
 
     double textWidth = min(
-      max(tp.width + 24 + 4, widget.minWidth),
-      lastConstraints!.maxWidth - 18,
+      tp.width + widget.textFieldPadding.horizontal + 2,
+      (lastConstraints!.maxWidth - widget.padding.horizontal) -
+          18 -
+          16, //18 is icon + padding
     );
 
     if (textWidth > temp)
@@ -386,8 +433,17 @@ class TaggerController extends TextEditingController {
 
   List<String> get tags {
     if (_onTagsRequested != null)
-      return List<String>.from(_onTagsRequested!())..add(this.text);
+      return List<String>.from(_onTagsRequested!())
+        ..add(this.text);
     else
       return <String>[]..add(this.text);
   }
+}
+
+
+extension on String {
+  String get overflow =>
+      Characters(this)
+          .replaceAll(Characters(''), Characters('\u{200B}'))
+          .toString();
 }

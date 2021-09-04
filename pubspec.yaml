@@ -12,6 +12,8 @@ dependencies:
   flutter:
     sdk: flutter
 
+  characters: ^1.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
